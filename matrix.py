@@ -1,3 +1,5 @@
+import math
+
 class MatrixError(Exception):
     def __init__(self, message, *args, **kwargs):
         Exception.__init__(self, message)
@@ -82,10 +84,11 @@ class Matrix:
 
     def __radd__(self, other):
         try:
-            return self.__add__(other)
+            M = self.__add__(other)
         except TypeError:
             raise TypeError("cannot add {} to {}".format(
-                self.__class__.__name__, other.__class__.__name__))
+                self.__class__.__name__, self.__class__.__name__))
+        return M
 
     def __iadd__(self, other):
         self = self.__add__(other)
@@ -180,6 +183,18 @@ class Matrix:
         self = self.__mod__(other)
         return self
 
+    def __eq__(self, other):
+        if self.shape == other.shape:
+            for i in range(self.shape[0]):
+                for j in range(self.shape[1]):
+                    if self[i][j] != other[i][j]:
+                        return False
+            return True
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def sgn(self, x):
         # Calculate the sign of x
         if type(x) == int or type(x) == float:
@@ -193,13 +208,9 @@ class Matrix:
 
     @property
     def inverse(self, *args, **kwargs):
-        # Calculate inverse (M * M^-1 = I)
+        # Calculate the inverse
         if not self.is_singular():
-            d = self.det
-            for i in range(26):
-                if (d * i) % 26 == 1:
-                    break
-            M = i * self.adjugate
+            M = (1 / self.det) * self.adjugate
         else:
             raise MatrixError("{} has no inverse as the determinant is 0".format(
                 repr(self)))
@@ -207,29 +218,59 @@ class Matrix:
 
     @property
     def inv(self, *args, **kwargs):
+        # Calculate the inverse
         return self.inverse
+
+    def modular_inverse(self, m):
+        # Calculate the inverse mod m
+        if not self.is_singular():
+            d = self.det
+            for i in range(m):
+                if (d * i) % m == 1:
+                    break
+                
+            M = (i * self.adjugate) % m
+            
+            # Check the inverse is correct
+            if (self * M) % m != self.I:
+                if not self._coprime(d, m):
+                    raise MatrixError("{} has no inverse as the determinant is coprime to {}".format(
+                        repr(self), m))
+        else:
+            raise MatrixError("{} has no inverse as the determinant is 0".format(
+                repr(self)))
+        return M
+
+    def mod_inv(self, m):
+        # Calculate the inverse mod m
+        return self.modular_inverse(m)
 
     @property
     def determinant(self, *args, **kwargs):
-        # Calculate determinant
+        # Calculate the determinant
         if self.is_square():
             if self.shape == (1, 1):
-                return self[0][0]
+                d = self[0][0]
             elif self.shape == (2, 2):
-                return self[0][0] * self[1][1] - self[0][1] * self[1][0]
+                d =  self[0][0] * self[1][1] - self[0][1] * self[1][0]
             elif self.shape == (3, 3):
-                return (self[0][0] * self[1][1] * self[2][2]
-                        + self[0][1] * self[1][2] * self[2][0]
-                        + self[0][2] * self[1][0] * self[2][1]
-                        - self[0][2] * self[1][1] * self[2][0]
-                        - self[0][1] * self[1][0] * self[2][2]
-                        - self[0][0] * self[1][2] * self[2][1])
+                d = (self[0][0] * self[1][1] * self[2][2]
+                     + self[0][1] * self[1][2] * self[2][0]
+                     + self[0][2] * self[1][0] * self[2][1]
+                     - self[0][2] * self[1][1] * self[2][0]
+                     - self[0][1] * self[1][0] * self[2][2]
+                     - self[0][0] * self[1][2] * self[2][1])
+            else:
+                raise MatrixError("the determinant has not been implemented for {}x{} matrices yet".format(
+                    *self.shape))
+            return d
         else:
             raise MatrixError("{} must be square to have a determinant".format(
                 repr(self)))
 
     @property
     def det(self, *args, **kwargs):
+        # Calculate the determinant
         return self.determinant
 
     def minor(self, i, j):
@@ -245,7 +286,8 @@ class Matrix:
 
     @property
     def matrix_of_minors(self, *args, **kwargs):
-        # Create a matrix with the determinants of each matrix of minor
+        # Calculate the matrix of minors
+        # Each value is the determinant of the corresponding minor
         values = []
         for i in range(self.shape[0]):
             values.append([])
@@ -255,30 +297,37 @@ class Matrix:
 
     @property
     def minors(self, *args, **kwargs):
+        # Calculate the matrix of minors
         return self.matrix_of_minors
 
     @property
     def cofactor(self, *args, **kwargs):
+        # Calculate the cofactor matrix
+        # A matrix where the every other value changes sign
         values = [[self[i][j] * (-1)**(i+j) for j in range(self.shape[1])]
                   for i in range(self.shape[0])]
         return Matrix(values)
 
     @property
     def transpose(self, *args, **kwargs):
-        values = [[self[j][i] for j in range(self.shape[1])]
-                  for i in range(self.shape[0])]
+        # Calculate the transpose matrix
+        # Swap the rows and columns
+        values = [self.column(i) for i in range(self.shape[1])]
         return Matrix(values)
 
     @property
     def T(self, *args, **kwargs):
+        # Calculate the transpose matrix
         return self.transpose
 
     @property
     def adjugate(self, *args, **kwargs):
+        # Calculate the adjugate matrix
         return self.minors.cofactor.T
 
     @property
     def identity(self, *args, **kwargs):
+        # Calculate the identity matrix
         if self.is_square():
             values = [[int(i == j) for j in range(self.shape[1])]
                       for i in range(self.shape[0])]
@@ -289,6 +338,7 @@ class Matrix:
 
     @property
     def I(self, *args, **kwargs):
+        # Calculate the identity matrix
         return self.identity
 
     @property
@@ -300,6 +350,32 @@ class Matrix:
 
     def is_singular(self, *args, **kwargs):
         return self.det == 0
+
+    def _prime_factors(self, number):
+        n = number
+        factors = []
+        if n < 0:
+            factors.append(-1)
+            n *= -1
+        while n % 2 == 0:
+            factors.append(2)
+            n = int(n / 2)
+        for x in range(3, int(math.ceil(number / 2)) + 1, 2):
+            while n % x == 0:
+                factors.append(x)
+                n = int(n / x)
+            if n == 1:
+                break
+        if len(factors) == 0:
+            factors.append(number)
+        return factors
+
+    def _coprime(self, a, b):
+        factors = self._prime_factors(a)
+        for f in self._prime_factors(b):
+            if f in factors:
+                return False
+        return True
 
 if __name__ == "__main__":
     print("This module is intended to be imported and should not be run directly.")
