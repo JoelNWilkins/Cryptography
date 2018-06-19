@@ -1,12 +1,36 @@
 import math
+import random
+from itertools import permutations
 
 class MatrixError(Exception):
     def __init__(self, message, *args, **kwargs):
         Exception.__init__(self, message)
 
 class Matrix:
-    def __init__(self, values, *args, **kwargs):
-        self.__values = values
+    def __init__(self, *args, **kwargs):
+        self.__values = []
+        if "random" in kwargs.keys():
+            r = kwargs["random"]
+            if r:
+                shape = kwargs["shape"]
+                m = kwargs["m"]
+                while True:
+                    self.__values = [[random.randint(0, m)
+                                      for x in range(shape[0])]
+                                     for y in range(shape[1])]
+                    if shape[0] == shape[1]:
+                        if self.det != 0 and self._coprime(self.det, m):
+                            break
+                    else:
+                        break
+                    
+        if self.__values == []:
+            if "shape" in kwargs.keys():
+                shape = kwargs["shape"]
+                self.__values = [[args[0][shape[0]*x+y] for x in range(shape[0])]
+                                 for y in range(shape[1])]
+            else:
+                self.__values = args[0]
 
         # Check the matrix is valid
         lengths = set([len(row) for row in self.__values])
@@ -195,17 +219,6 @@ class Matrix:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def sgn(self, x):
-        # Calculate the sign of x
-        if type(x) == int or type(x) == float:
-            if x == 0:
-                return 0
-            else:
-                return int(x / abs(x))
-        else:
-            raise TypeError("values should be ints or floats not {}".format(
-                x.__class__.__name__))
-
     @property
     def inverse(self, *args, **kwargs):
         # Calculate the inverse
@@ -249,20 +262,9 @@ class Matrix:
     def determinant(self, *args, **kwargs):
         # Calculate the determinant
         if self.is_square():
-            if self.shape == (1, 1):
-                d = self[0][0]
-            elif self.shape == (2, 2):
-                d =  self[0][0] * self[1][1] - self[0][1] * self[1][0]
-            elif self.shape == (3, 3):
-                d = (self[0][0] * self[1][1] * self[2][2]
-                     + self[0][1] * self[1][2] * self[2][0]
-                     + self[0][2] * self[1][0] * self[2][1]
-                     - self[0][2] * self[1][1] * self[2][0]
-                     - self[0][1] * self[1][0] * self[2][2]
-                     - self[0][0] * self[1][2] * self[2][1])
-            else:
-                raise MatrixError("the determinant has not been implemented for {}x{} matrices yet".format(
-                    *self.shape))
+            d = sum([self._sgn(p)
+                     * self._product([self[i][p[i]] for i in range(len(p))])
+                     for p in permutations(list(range(self.shape[0])))])
             return d
         else:
             raise MatrixError("{} must be square to have a determinant".format(
@@ -350,6 +352,38 @@ class Matrix:
 
     def is_singular(self, *args, **kwargs):
         return self.det == 0
+
+    def _sgn(self, x):
+        # Calculate the sign of x (1 == even, -1 == odd, 0 == zero)
+        if type(x) == int or type(x) == float:
+            if x == 0:
+                return 0
+            else:
+                return int(x / abs(x))
+        elif type(x) == list or type(x) == tuple:
+            p = list(x)
+            q = sorted(p)
+            # r is the number of transpositions
+            r = 0
+            for i in range(len(p)):
+                if p == q:
+                    break
+                if p[i] != q[i]:
+                    old = p[i]
+                    pos = p.index(q[i])
+                    p[i] = q[i]
+                    p[pos] = old
+                    r += 1
+            return (-1)**r
+        else:
+            raise TypeError("values should be ints or floats not {}".format(
+                x.__class__.__name__))
+
+    def _product(self, x):
+        total = 1
+        for item in x:
+            total *= item
+        return total
 
     def _prime_factors(self, number):
         n = number

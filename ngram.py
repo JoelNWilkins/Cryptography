@@ -18,3 +18,6 @@ def most_common(n, grams):
         values.remove(value)
         output.extend([gram for gram in grams.keys() if grams[gram] == value])
     return output
+
+if __name__ == "__main__":
+    print("This module is intended to be imported and should not be run directly.")

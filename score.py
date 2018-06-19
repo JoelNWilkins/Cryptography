@@ -43,10 +43,13 @@ def index_of_coincidence_dist(text):
     total = sum([freq[letter] for letter in LETTERS if letter in freq.keys()])
     dist = {}
     for letter in LETTERS:
-        dist[letter] = ((freq[letter] * (freq[letter] - 1))
-                        / (total * (total - 1)))
+        dist[letter] = len(freq) * ((freq[letter] * (freq[letter] - 1))
+                                    / (total * (total - 1)))
     return dist
 
 def index_of_coincidence(text):
     dist = index_of_coincidence_dist(text)
     return sum(dist.values())
+
+if __name__ == "__main__":
+    print("This module is intended to be imported and should not be run directly.")

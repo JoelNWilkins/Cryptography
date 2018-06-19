@@ -8,3 +8,6 @@ def convert_text(text):
         if char in letters:
             output += char
     return output
+
+if __name__ == "__main__":
+    print("This module is intended to be imported and should not be run directly.")
